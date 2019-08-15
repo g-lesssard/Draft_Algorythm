@@ -1,5 +1,4 @@
-
-def createDictFromFile(file):
+def create_dict_from_file(file):
 	items = []
 	with open(file) as f:
 		try:
@@ -16,6 +15,6 @@ def createDictFromFile(file):
 			print("Value error: {0}".format(e))
 	return items
 
-def sortByKey(dict,key):
-	return sorted(dict, key=lambda x: int(x[key]), reverse=True)
 
+def sort_by_key(list_to_sort, key):
+	return sorted(list_to_sort, key=lambda x: int(x[key]), reverse=True)
