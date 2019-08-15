@@ -18,3 +18,12 @@ def create_dict_from_file(file):
 
 def sort_by_key(list_to_sort, key):
 	return sorted(list_to_sort, key=lambda x: int(x[key]), reverse=True)
+
+def calculate_player_score(list_of_players):
+	for player in list_of_players:
+		past_factor = 6
+		expected_factor = 4
+		age_factor = 1
+		score = past_factor*int(player['PastPoints']) + expected_factor*int(player['ExpectedPoints']) + age_factor
+		player.update({"Score": score})
+	return list_of_players
