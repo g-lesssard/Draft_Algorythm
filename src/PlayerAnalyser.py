@@ -4,6 +4,7 @@ def create_dict_from_file(file):
         try:
             headers = f.readline()
             headers = headers.split(",")
+            print(headers)
             lines = f.readlines()
             for line in lines:
                 line = line.split(",")
@@ -22,8 +23,8 @@ def calculate_player_score(list_of_players):
     for player in list_of_players:
         past_factor = 6
         expected_factor = 4
-        age_factor = 1
-        score = past_factor * int(player['PastPoints']) + expected_factor * int(player['ExpectedPoints']) + age_factor
+        age_factor = -5
+        score = past_factor * int(player['PastPoints']) + age_factor * (1995 - int( player["Year\n"] ))
         player.update({"Score": score})
     return list_of_players
 
