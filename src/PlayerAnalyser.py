@@ -5,7 +5,7 @@ def create_dict_from_file(file):
             headers = f.readline()
             headers = headers.split(",")
             headers[0] = headers[0][3:]
-            headers[len(headers)-1] = headers[len(headers)-1].rstrip('\n')
+            headers[len(headers) - 1] = headers[len(headers) - 1].rstrip('\n')
             lines = f.readlines()
             for line in lines:
                 line = line.split(",")
@@ -23,10 +23,9 @@ def sort_by_key(list_to_sort, key):
 
 def calculate_player_score(list_of_players):
     for player in list_of_players:
-        past_factor = 6
-        expected_factor = 4
+        past_factor = 0.7
         age_factor = -5
-        score = past_factor * int(player['PastPoints']) + age_factor * (1995 - int( player["Year"] ))
+        score = past_factor * int(player['PastPoints']) + age_factor * (1995 - int(player["Year"]))
         player.update({"Score": score})
     return list_of_players
 
@@ -35,6 +34,12 @@ def remove_players(base_players, forbidden_players):
     for forbidden_player in forbidden_players:
         for player in base_players:
             if player["Name"] == forbidden_player["Name"]:
-                print("Removing player {}".format(player["Name"]))
                 base_players.remove(player)
     return base_players
+
+
+def print_players_file(players, file):
+    f = open(file, "w+")
+    for player in players:
+        f.write(player["Name"] + "\n")
+    f.close()

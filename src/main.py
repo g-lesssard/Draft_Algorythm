@@ -17,3 +17,5 @@ for item in sorted_players:
     print(item)
 
 print("There are {} players".format(len(sorted_players)))
+
+PlayerAnalyser.print_players_file(sorted_players,"test_draft.csv")
