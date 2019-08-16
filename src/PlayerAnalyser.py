@@ -3,12 +3,10 @@ def create_dict_from_file(file):
     with open(file) as f:
         try:
             headers = f.readline()
-            headers = headers.split(";")
-            headers.remove(headers[len(headers) - 1])
+            headers = headers.split(",")
             lines = f.readlines()
             for line in lines:
-                line = line.split(";")
-                line.remove(line[len(line) - 1])
+                line = line.split(",")
                 item = dict(zip(headers, line))
                 items.append(item)
         except ValueError as e:
@@ -28,3 +26,13 @@ def calculate_player_score(list_of_players):
         score = past_factor * int(player['PastPoints']) + expected_factor * int(player['ExpectedPoints']) + age_factor
         player.update({"Score": score})
     return list_of_players
+
+
+def remove_players(base_players, forbidden_players):
+    hit_list = []
+    for forbidden_player in forbidden_players:
+        hit_list.append(forbidden_player["Name"])
+    for player in base_players:
+        if player["Name"] in hit_list:
+            base_players.remove(player)
+    return base_players
