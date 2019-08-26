@@ -33,13 +33,30 @@ def calculate_player_score(list_of_players):
 def remove_players(base_players, forbidden_players):
     for forbidden_player in forbidden_players:
         for player in base_players:
-            if player["Name"] == forbidden_player["Name"]:
-                base_players.remove(player)
+            try:
+                if player['Name'] == forbidden_player['Name']:
+                    base_players.remove(player)
+            except KeyError as k:
+                print("Key error {}".format(k))
     return base_players
 
 
 def print_players_file(players, file):
     f = open(file, "w+")
+    f.write("Name,PastPoints,Age\n")
     for player in players:
-        f.write(player["Name"] + "\n")
+        try:
+            f.write("{0},{1},{2}\n".format(player["Name"],player["PastPoints"],player["Age"]))
+        except KeyError as k:
+            print("Key error {}".format(k))
     f.close()
+
+
+def set_max_age(players, age):
+    for player in players:
+        try:
+            if int(player["Age"]) >= age:
+                players.remove(player)
+        except KeyError as k:
+            print("Key Error: {}".format(k))
+    return players
