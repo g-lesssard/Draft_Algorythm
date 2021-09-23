@@ -1,7 +1,19 @@
 import requests
 import csv
+from enum import Enum
+from tqdm import tqdm
 
-filters = ['id', 'fullName', 'points(2019-2020)', 'average(2017-2020)']
+
+class Filters(Enum):
+    id = 0
+    fullname = 1
+    points_last_season = 2
+    average_last_seasons = 3
+
+
+filters = ['id', 'fullName', 'points(2020-2021)', 'average(2018-2021)']
+active_seasons = ["20202021", "20192020", "20182019"]
+
 
 forwardsFile = open('forwards.csv', 'w', newline='') 
 forwards = csv.DictWriter(forwardsFile, fieldnames=filters)
@@ -24,7 +36,7 @@ def isGoalie(code):
 
 
 def addForward(player):
-    statsLastSeason = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=20192020").json()
+    statsLastSeason = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[0]).json()
     pointsLastSeason = 0
     average = 0
     count = 0
@@ -34,28 +46,28 @@ def addForward(player):
         count += 1
     except:
         pass
-    stats2017 = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=20172018").json()
+    stats = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[1]).json()
     try:
-        average += stats2017["stats"][0]["splits"][0]["stat"]["points"]
+        average += stats["stats"][0]["splits"][0]["stat"]["points"]
         count += 1
     except:
         pass
-    stats2018 = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=20182019").json()
+    stats = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[2]).json()
     try:
-        average += stats2018["stats"][0]["splits"][0]["stat"]["points"]
+        average += stats["stats"][0]["splits"][0]["stat"]["points"]
         count += 1
     except:
         pass
     if(count):
         average /= count
-    forwards.writerow( {'id': player['person']['id'],
-                        'fullName': player['person']['fullName'],
-                        'points(2019-2020)': pointsLastSeason,
-                        'average(2017-2020)': average})  
+    forwards.writerow( {filters[Filters.id.value]: player['person']['id'],
+                        filters[Filters.fullname.value]: player['person']['fullName'],
+                        filters[Filters.points_last_season.value]: pointsLastSeason,
+                        filters[Filters.average_last_seasons.value]: average})
     return True
 
 def addDefenseman(player):
-    statsLastSeason = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=20192020").json()
+    statsLastSeason = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[0]).json()
     pointsLastSeason = 0
     average = 0
     count = 0
@@ -65,28 +77,28 @@ def addDefenseman(player):
         count += 1
     except:
         pass
-    stats2017 = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=20172018").json()
+    stats = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[1]).json()
     try:
-        average += stats2017["stats"][0]["splits"][0]["stat"]["points"]
+        average += stats["stats"][0]["splits"][0]["stat"]["points"]
         count += 1
     except:
         pass
-    stats2018 = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=20182019").json()
+    stats = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[2]).json()
     try:
-        average += stats2018["stats"][0]["splits"][0]["stat"]["points"]
+        average += stats["stats"][0]["splits"][0]["stat"]["points"]
         count += 1
     except:
         pass
     if(count):
         average /= count
-    defensemen.writerow( {'id': player['person']['id'],
-                        'fullName': player['person']['fullName'],
-                        'points(2019-2020)': pointsLastSeason,
-                        'average(2017-2020)': average})  
+    defensemen.writerow( {filters[Filters.id.value]: player['person']['id'],
+                        filters[Filters.fullname.value]: player['person']['fullName'],
+                        filters[Filters.points_last_season.value]: pointsLastSeason,
+                        filters[Filters.average_last_seasons.value]: average})
     return True
 
 def addGoalie(player, team):
-    statsLastSeason = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=20192020").json()
+    statsLastSeason = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[0]).json()
     pointsLastSeason = 0
     average = 0
     count = 0
@@ -96,24 +108,24 @@ def addGoalie(player, team):
         count += 1
     except:
         pass
-    stats2017 = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=20172018").json()
+    stats = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[1]).json()
     try:
-        average += stats2017["stats"][0]["splits"][0]["stat"]["wins"] * 2 + stats2017["stats"][0]["splits"][0]["stat"]["ties"]
+        average += stats["stats"][0]["splits"][0]["stat"]["wins"] * 2 + stats["stats"][0]["splits"][0]["stat"]["ties"]
         count += 1
     except:
         pass
-    stats2018 = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=20182019").json()
+    stats = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[2]).json()
     try:
-        average += stats2018["stats"][0]["splits"][0]["stat"]["wins"] * 2 + stats2018["stats"][0]["splits"][0]["stat"]["ties"]
+        average += stats["stats"][0]["splits"][0]["stat"]["wins"] * 2 + stats["stats"][0]["splits"][0]["stat"]["ties"]
         count += 1
     except:
         pass
     if(count):
         average /= count
-    goalies.writerow( {'id': player['person']['id'],
-                        'fullName': player['person']['fullName'],
-                        'points(2019-2020)': pointsLastSeason,
-                        'average(2017-2020)': average})  
+    goalies.writerow( {filters[Filters.id.value]: player['person']['id'],
+                        filters[Filters.fullname.value]: player['person']['fullName'],
+                        filters[Filters.points_last_season.value]: pointsLastSeason,
+                        filters[Filters.average_last_seasons.value]: average})
     return True
 
 
@@ -127,10 +139,10 @@ def generatePlayerList():
     for team in requests.get("https://statsapi.web.nhl.com/api/v1/teams").json()["teams"]:
         teams.update({team["id"]:team["name"]})
         
-    for team in teams:
+    for team in tqdm(teams):
         request = "https://statsapi.web.nhl.com/api/v1/teams/" + str(team) + "/roster"
         roster = requests.get(request).json()["roster"]
-        for player in roster:
+        for player in tqdm(roster):
             if isForward(player["position"]["code"]):
                 addForward(player)
                 pass

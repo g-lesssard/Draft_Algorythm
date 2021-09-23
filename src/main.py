@@ -1,4 +1,4 @@
-from src import PlayerAnalyser
+import PlayerAnalyser
 
 print("Sorting players...")
 
