@@ -35,66 +35,28 @@ def isGoalie(code):
     return code == 'G'
 
 
-def addForward(player):
-    statsLastSeason = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[0]).json()
+def addPlayer(player, players):
+    stats = requests.get(
+        "https://statsapi.web.nhl.com" + str(player["person"]["link"]) + "/stats?stats=yearByYear").json()
     pointsLastSeason = 0
     average = 0
     count = 0
     try:
-        pointsLastSeason = statsLastSeason["stats"][0]["splits"][0]["stat"]["points"]
-        average += pointsLastSeason
-        count += 1
-    except:
-        pass
-    stats = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[1]).json()
-    try:
-        average += stats["stats"][0]["splits"][0]["stat"]["points"]
-        count += 1
-    except:
-        pass
-    stats = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[2]).json()
-    try:
-        average += stats["stats"][0]["splits"][0]["stat"]["points"]
-        count += 1
-    except:
-        pass
-    if(count):
-        average /= count
-    forwards.writerow( {filters[Filters.id.value]: player['person']['id'],
-                        filters[Filters.fullname.value]: player['person']['fullName'],
-                        filters[Filters.points_last_season.value]: pointsLastSeason,
-                        filters[Filters.average_last_seasons.value]: average})
-    return True
+        seasons = stats["stats"][0]["splits"]
+        pointsLastSeason = seasons[-1]["stat"]["points"]
+        for season in seasons[-min(3, len(seasons)):]:
+            average += season["stat"]["points"]
+            count += 1
 
-def addDefenseman(player):
-    statsLastSeason = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[0]).json()
-    pointsLastSeason = 0
-    average = 0
-    count = 0
-    try:
-        pointsLastSeason = statsLastSeason["stats"][0]["splits"][0]["stat"]["points"]
-        average += pointsLastSeason
-        count += 1
-    except:
+        if count:
+            average /= count
+
+        players.writerow({filters[Filters.id.value]: player['person']['id'],
+                           filters[Filters.fullname.value]: player['person']['fullName'],
+                           filters[Filters.points_last_season.value]: pointsLastSeason,
+                           filters[Filters.average_last_seasons.value]: average})
+    except KeyError:
         pass
-    stats = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[1]).json()
-    try:
-        average += stats["stats"][0]["splits"][0]["stat"]["points"]
-        count += 1
-    except:
-        pass
-    stats = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[2]).json()
-    try:
-        average += stats["stats"][0]["splits"][0]["stat"]["points"]
-        count += 1
-    except:
-        pass
-    if(count):
-        average /= count
-    defensemen.writerow( {filters[Filters.id.value]: player['person']['id'],
-                        filters[Filters.fullname.value]: player['person']['fullName'],
-                        filters[Filters.points_last_season.value]: pointsLastSeason,
-                        filters[Filters.average_last_seasons.value]: average})
     return True
 
 def addGoalie(player, team):
@@ -144,10 +106,10 @@ def generatePlayerList():
         roster = requests.get(request).json()["roster"]
         for player in tqdm(roster):
             if isForward(player["position"]["code"]):
-                addForward(player)
+                addPlayer(player, forwards)
                 pass
             elif isDefensemen(player["position"]["code"]):
-                addDefenseman(player)
+                addPlayer(player, defensemen)
                 pass
             elif isGoalie(player["position"]["code"]):
                 addGoalie(player, team)
