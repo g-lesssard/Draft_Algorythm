@@ -9,6 +9,9 @@ import re
 from enum import Enum
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
+
+confirmation_mutex = Lock()
 
 
 class Filters(Enum):
@@ -59,7 +62,9 @@ def addPlayer(player, players, drafted_players):
 
         if max([difflib.SequenceMatcher(None, player['person']['fullName'].upper().split(" ")[-1], d).ratio() for d in
                 drafted_players]) == 1:
-            drafted = 1
+            confirmation_mutex.acquire(True)
+            drafted = int(input(f" Is {player['person']['fullName']} ({player['position']['code']}) drafted? (Default to 1)")) or 1
+            confirmation_mutex.release()
 
         players.writerow({filters[Filters.id.value]: player['person']['id'],
                           filters[Filters.fullname.value]: player['person']['fullName'],
@@ -104,7 +109,10 @@ def addGoalie(player, team, goalies, drafted_players):
 
     if max([difflib.SequenceMatcher(None, player['person']['fullName'].upper().split(" ")[-1], d).ratio() for d in
             drafted_players]) == 1:
-        drafted = 1
+        confirmation_mutex.acquire(True)
+        drafted = int(
+            input(f" Is {player['person']['fullName']} ({player['position']['code']}) drafted? (Default to 1)")) or 1
+        confirmation_mutex.release()
 
     goalies.writerow({filters[Filters.id.value]: player['person']['id'],
                       filters[Filters.fullname.value]: player['person']['fullName'],
