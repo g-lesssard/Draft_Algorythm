@@ -19,14 +19,7 @@ active_seasons = ["20202021", "20192020", "20182019"]
 if not os.path.exists("../outputs"):
     os.makedirs("../outputs")
 
-forwardsFile = open('../outputs/forwards.csv', 'w+', newline='')
-forwards = csv.DictWriter(forwardsFile, fieldnames=filters)
 
-defensemenFile = open('../outputs/defensemen.csv', 'w+', newline='')
-defensemen = csv.DictWriter(defensemenFile, fieldnames=filters)
-
-goaliesFile = open('../outputs/goalies.csv', 'w+', newline='')
-goalies = csv.DictWriter(goaliesFile, fieldnames=filters)
 
 
 def isForward(code):
@@ -66,7 +59,7 @@ def addPlayer(player, players):
     return True
 
 
-def addGoalie(player, team):
+def addGoalie(player, team, goalies):
     statsLastSeason = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(
         player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[0]).json()
     pointsLastSeason = 0
@@ -98,11 +91,12 @@ def addGoalie(player, team):
     goalies.writerow({filters[Filters.id.value]: player['person']['id'],
                       filters[Filters.fullname.value]: player['person']['fullName'],
                       filters[Filters.points_last_season.value]: pointsLastSeason,
-                      filters[Filters.average_last_seasons.value]: average})
+                      filters[Filters.average_last_seasons.value]: average,
+                      filters[Filters.drafted.value]: 0})
     return True
 
 
-def analysePlayersFromTeam(team_id, team_name=""):
+def analysePlayersFromTeam(team_id, team_name, forwards, defensemen, goalies):
     request = "https://statsapi.web.nhl.com/api/v1/teams/" + str(team_id) + "/roster"
     roster = requests.get(request).json()["roster"]
     for player in roster:
@@ -113,10 +107,19 @@ def analysePlayersFromTeam(team_id, team_name=""):
             addPlayer(player, defensemen)
             pass
         elif isGoalie(player["position"]["code"]):
-            addGoalie(player, team_id)
+            addGoalie(player, team_id, goalies)
 
 
 def generatePlayerList():
+    forwardsFile = open('../outputs/forwards.csv', 'w+', newline='')
+    forwards = csv.DictWriter(forwardsFile, fieldnames=filters)
+
+    defensemenFile = open('../outputs/defensemen.csv', 'w+', newline='')
+    defensemen = csv.DictWriter(defensemenFile, fieldnames=filters)
+
+    goaliesFile = open('../outputs/goalies.csv', 'w+', newline='')
+    goalies = csv.DictWriter(goaliesFile, fieldnames=filters)
+
     forwards.writeheader()
     defensemen.writeheader()
     goalies.writeheader()
@@ -128,7 +131,7 @@ def generatePlayerList():
 
     with tqdm(total=len(teams), desc="Generating Database", colour="green") as pbar:
         with ThreadPoolExecutor(max_workers=len(teams)) as executors:
-            futures = [executors.submit(analysePlayersFromTeam, t, teams[t]) for t in teams]
+            futures = [executors.submit(analysePlayersFromTeam, t, teams[t], forwards, defensemen, goalies) for t in teams]
             for future in as_completed(futures):
                 pbar.update(1)
 
