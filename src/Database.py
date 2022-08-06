@@ -116,7 +116,16 @@ def generatePlayerList():
         teams.update({team["id"]:team["name"]})
 
     a = 0
-    [analysePlayersFromTeam(t, teams[t]) for t in tqdm(teams, desc="All Teams")]
+    #[analysePlayersFromTeam(t, teams[t]) for t in tqdm(teams, desc="All Teams")]
+    threads = [threading.Thread(target=analysePlayersFromTeam, args=(t, teams[t])) for t in teams]
+
+    for thread in threads:
+        thread.start()
+    a = 1
+    for thread in threads:
+        thread.join()
+
+
 
 
 
