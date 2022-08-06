@@ -19,13 +19,14 @@ class Filters(Enum):
     fullname = 1
     points_last_season = 2
     average_last_seasons = 3
-    drafted = 4
+    transferred = 4
+    drafted = 5
 
 
 similarity_level = 0.8
 
-filters = ['id', 'fullName', 'points(2020-2021)', 'average(2018-2021)', 'drafted']
-active_seasons = ["20202021", "20192020", "20182019"]
+filters = ['ID', 'Full Name', 'Points Last Season', 'Average Last Seasons', 'Transferred', 'Drafted']
+active_seasons = ["20212022", "20202021", "20192020"]
 
 if not os.path.exists("../outputs"):
     os.makedirs("../outputs")
@@ -43,13 +44,14 @@ def isGoalie(code):
     return code == 'G'
 
 
-def addPlayer(player, players, drafted_players):
+def addPlayer(player, players, drafted_players, current_team_id):
     stats = requests.get(
         "https://statsapi.web.nhl.com" + str(player["person"]["link"]) + "/stats?stats=yearByYear").json()
     pointsLastSeason = 0
     average = 0
     count = 0
     drafted = 0
+    transferred = 0
     try:
         seasons = stats["stats"][0]["splits"]
         pointsLastSeason = seasons[-1]["stat"]["points"]
@@ -60,6 +62,8 @@ def addPlayer(player, players, drafted_players):
         if count:
             average /= count
 
+        transferred = int(seasons[-1]["team"]["id"] != current_team_id)
+
         if max([difflib.SequenceMatcher(None, player['person']['fullName'].upper().split(" ")[-1], d).ratio() for d in
                 drafted_players]) >= similarity_level:
             drafted = 1
@@ -68,13 +72,14 @@ def addPlayer(player, players, drafted_players):
                           filters[Filters.fullname.value]: player['person']['fullName'],
                           filters[Filters.points_last_season.value]: pointsLastSeason,
                           filters[Filters.average_last_seasons.value]: average,
+                          filters[Filters.transferred.value]: transferred,
                           filters[Filters.drafted.value]: drafted})
     except KeyError:
         pass
     return drafted
 
 
-def addGoalie(player, team, goalies, drafted_players):
+def addGoalie(player, team, goalies, drafted_players, current_team_name):
     statsLastSeason = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(
         player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[0]).json()
     pointsLastSeason = 0
@@ -113,6 +118,7 @@ def addGoalie(player, team, goalies, drafted_players):
                       filters[Filters.fullname.value]: player['person']['fullName'],
                       filters[Filters.points_last_season.value]: pointsLastSeason,
                       filters[Filters.average_last_seasons.value]: average,
+                      filters[Filters.transferred.value]: current_team_name,
                       filters[Filters.drafted.value]: drafted})
     return drafted
 
@@ -123,13 +129,13 @@ def analysePlayersFromTeam(team_id, team_name, forwards, defensemen, goalies, dr
     drafted_count = 0
     for player in roster:
         if isForward(player["position"]["code"]):
-            drafted_count += addPlayer(player, forwards, drafted_players["forwards"])
+            drafted_count += addPlayer(player, forwards, drafted_players["forwards"], team_id)
             pass
         elif isDefensemen(player["position"]["code"]):
-            drafted_count += addPlayer(player, defensemen, drafted_players["defensemen"])
+            drafted_count += addPlayer(player, defensemen, drafted_players["defensemen"], team_id)
             pass
         elif isGoalie(player["position"]["code"]):
-            drafted_count += addGoalie(player, team_id, goalies, drafted_players["goalies"])
+            drafted_count += addGoalie(player, team_id, goalies, drafted_players["goalies"], team_name)
 
     return drafted_count
 
