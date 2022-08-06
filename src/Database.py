@@ -22,7 +22,7 @@ class Filters(Enum):
     drafted = 4
 
 
-similarity_level = 0.95
+similarity_level = 0.8
 
 filters = ['id', 'fullName', 'points(2020-2021)', 'average(2018-2021)', 'drafted']
 active_seasons = ["20202021", "20192020", "20182019"]
@@ -61,10 +61,8 @@ def addPlayer(player, players, drafted_players):
             average /= count
 
         if max([difflib.SequenceMatcher(None, player['person']['fullName'].upper().split(" ")[-1], d).ratio() for d in
-                drafted_players]) == 1:
-            confirmation_mutex.acquire(True)
-            drafted = int(input(f" Is {player['person']['fullName']} ({player['position']['code']}) drafted? (Default to 1)")) or 1
-            confirmation_mutex.release()
+                drafted_players]) >= similarity_level:
+            drafted = 1
 
         players.writerow({filters[Filters.id.value]: player['person']['id'],
                           filters[Filters.fullname.value]: player['person']['fullName'],
@@ -108,11 +106,8 @@ def addGoalie(player, team, goalies, drafted_players):
         average /= count
 
     if max([difflib.SequenceMatcher(None, player['person']['fullName'].upper().split(" ")[-1], d).ratio() for d in
-            drafted_players]) == 1:
-        confirmation_mutex.acquire(True)
-        drafted = int(
-            input(f" Is {player['person']['fullName']} ({player['position']['code']}) drafted? (Default to 1)")) or 1
-        confirmation_mutex.release()
+            drafted_players]) >= similarity_level:
+        drafted = 1
 
     goalies.writerow({filters[Filters.id.value]: player['person']['id'],
                       filters[Filters.fullname.value]: player['person']['fullName'],
@@ -128,13 +123,13 @@ def analysePlayersFromTeam(team_id, team_name, forwards, defensemen, goalies, dr
     drafted_count = 0
     for player in roster:
         if isForward(player["position"]["code"]):
-            drafted_count += addPlayer(player, forwards, drafted_players)
+            drafted_count += addPlayer(player, forwards, drafted_players["forwards"])
             pass
         elif isDefensemen(player["position"]["code"]):
-            drafted_count += addPlayer(player, defensemen, drafted_players)
+            drafted_count += addPlayer(player, defensemen, drafted_players["defensemen"])
             pass
         elif isGoalie(player["position"]["code"]):
-            drafted_count += addGoalie(player, team_id, goalies, drafted_players)
+            drafted_count += addGoalie(player, team_id, goalies, drafted_players["goalies"])
 
     return drafted_count
 
@@ -149,9 +144,10 @@ def generatePlayerList():
     goaliesFile = open('../outputs/goalies.csv', 'w+', newline='')
     goalies = csv.DictWriter(goaliesFile, fieldnames=filters)
 
-    text_file = open(os.path.join(os.getcwd(), "../forbidden_players.raw"), 'r', encoding="utf8")
-    as_string = text_file.read()
-    drafted_players = re.split(r"\n+", as_string)
+    drafted_players = generated_forbidden_lists()
+    expected_drafted_count = 0
+    for el in drafted_players.items():
+        expected_drafted_count += len(el[1])
     total_drafted_count = 0
 
     forwards.writeheader()
@@ -177,14 +173,35 @@ def generatePlayerList():
         logging.info("Found same number of drafted players than from list")
     else:
         logging.warning(f"Drafted player count differs from number of forbidden players. Found {total_drafted_count}"
-                        f" drafted players instead of {len(drafted_players)}")
+                        f" drafted players instead of {expected_drafted_count}")
     pass
+
+def generated_forbidden_lists():
+    drafted_players = dict()
+
+    text_file = open(os.path.join(os.getcwd(), "../forbidden_forwards.raw"), 'r', encoding="utf8")
+    as_string = text_file.read()
+
+    drafted_players.update({"forwards": as_string.split()})
+
+    text_file = open(os.path.join(os.getcwd(), "../forbidden_defensemen.raw"), 'r', encoding="utf8")
+    as_string = text_file.read()
+    drafted_players.update({"defensemen": as_string.split()})
+
+    text_file = open(os.path.join(os.getcwd(), "../forbidden_goalies.raw"), 'r', encoding="utf8")
+    as_string = text_file.read()
+    drafted_players.update({"goalies": as_string.split()})
+
+    return drafted_players
+
+
 
 
 def test_forbidden_players():
-    text_file = open(os.path.join(os.getcwd(), "../forbidden_players.raw"), 'r', encoding="utf8")
-    as_string = text_file.read()
-    drafted_players = re.split(r"\n+", as_string)
+    drafted_players = generated_forbidden_lists()
+    expected_drafted_count = 0
+    for el in drafted_players.items():
+        expected_drafted_count += len(el[1])
 
     drafted_name = "Torey Claude Krug"
     non_drafted_name = "Jean Guy"
