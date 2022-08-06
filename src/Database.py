@@ -3,6 +3,7 @@ import csv
 from enum import Enum
 from tqdm import tqdm
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 class Filters(Enum):
@@ -94,7 +95,7 @@ def addGoalie(player, team):
 def analysePlayersFromTeam(team_id, team_name=""):
     request = "https://statsapi.web.nhl.com/api/v1/teams/" + str(team_id) + "/roster"
     roster = requests.get(request).json()["roster"]
-    for player in tqdm(roster, desc=str(team_name)):
+    for player in roster:
         if isForward(player["position"]["code"]):
             addPlayer(player, forwards)
             pass
@@ -117,13 +118,14 @@ def generatePlayerList():
 
     a = 0
     #[analysePlayersFromTeam(t, teams[t]) for t in tqdm(teams, desc="All Teams")]
-    threads = [threading.Thread(target=analysePlayersFromTeam, args=(t, teams[t])) for t in teams]
 
-    for thread in threads:
-        thread.start()
-    a = 1
-    for thread in threads:
-        thread.join()
+    with tqdm(total=len(teams), desc="Generating Database") as pbar:
+        with ThreadPoolExecutor(max_workers=len(teams)) as executors:
+            futures = [executors.submit(analysePlayersFromTeam, t, teams[t]) for t in teams]
+            for future in as_completed(futures):
+                pbar.update(1)
+
+
 
 
 
