@@ -2,6 +2,7 @@ import requests
 import csv
 from enum import Enum
 from tqdm import tqdm
+import threading
 
 
 class Filters(Enum):
@@ -90,6 +91,19 @@ def addGoalie(player, team):
                         filters[Filters.average_last_seasons.value]: average})
     return True
 
+def analysePlayersFromTeam(team_id, team_name=""):
+    request = "https://statsapi.web.nhl.com/api/v1/teams/" + str(team_id) + "/roster"
+    roster = requests.get(request).json()["roster"]
+    for player in tqdm(roster, desc=str(team_name)):
+        if isForward(player["position"]["code"]):
+            addPlayer(player, forwards)
+            pass
+        elif isDefensemen(player["position"]["code"]):
+            addPlayer(player, defensemen)
+            pass
+        elif isGoalie(player["position"]["code"]):
+            addGoalie(player, team_id)
+
 
 def generatePlayerList():
     forwards.writeheader()
@@ -100,19 +114,12 @@ def generatePlayerList():
     
     for team in requests.get("https://statsapi.web.nhl.com/api/v1/teams").json()["teams"]:
         teams.update({team["id"]:team["name"]})
-        
-    for team in tqdm(teams):
-        request = "https://statsapi.web.nhl.com/api/v1/teams/" + str(team) + "/roster"
-        roster = requests.get(request).json()["roster"]
-        for player in tqdm(roster):
-            if isForward(player["position"]["code"]):
-                addPlayer(player, forwards)
-                pass
-            elif isDefensemen(player["position"]["code"]):
-                addPlayer(player, defensemen)
-                pass
-            elif isGoalie(player["position"]["code"]):
-                addGoalie(player, team)
+
+    a = 0
+    [analysePlayersFromTeam(t, teams[t]) for t in tqdm(teams, desc="All Teams")]
+
+
+
     print("CSVs generated")
 
 
