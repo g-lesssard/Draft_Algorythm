@@ -17,13 +17,16 @@ filters = ['id', 'fullName', 'points(2020-2021)', 'average(2018-2021)']
 active_seasons = ["20202021", "20192020", "20182019"]
 
 
-forwardsFile = open('forwards.csv', 'w', newline='') 
+if not os.path.exists("../outputs"):
+    os.makedirs("../outputs")
+
+forwardsFile = open('../outputs/forwards.csv', 'w+', newline='')
 forwards = csv.DictWriter(forwardsFile, fieldnames=filters)
 
-defensemenFile = open('defensemen.csv', 'w', newline='')
+defensemenFile = open('../outputs/defensemen.csv', 'w+', newline='')
 defensemen = csv.DictWriter(defensemenFile, fieldnames=filters)
 
-goaliesFile = open('goalies.csv', 'w', newline='')
+goaliesFile = open('../outputs/goalies.csv', 'w+', newline='')
 goalies = csv.DictWriter(goaliesFile, fieldnames=filters)
 
 

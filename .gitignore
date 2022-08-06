@@ -1,6 +1,4 @@
-
 src/__pycache__/
-
-*.csv#
-
 .idea/
+
+outputs/
