@@ -3,9 +3,7 @@ import logging
 import requests
 import csv
 import os
-import numpy as np
 import difflib
-import re
 from enum import Enum
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
