@@ -24,7 +24,7 @@ class Filters(Enum):
 similarity_level = 0.8
 
 filters = ['ID', 'Full Name', 'Points Last Season', 'Average Last Seasons', 'Transferred', 'Drafted']
-active_seasons = ["20212022", "20202021", "20192020"]
+active_seasons = ["20222023","20212022", "20202021", "20192020"]
 
 if not os.path.exists("../outputs"):
     os.makedirs("../outputs")
