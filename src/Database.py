@@ -104,18 +104,56 @@ def addGoalie(id, team, list_to_add: DataFrame, drafted: DataFrame):
     list_to_add = pd.concat([list_to_add, player.to_frame().T])
     return list_to_add
 
+def addRookie(id, team, list_to_add: DataFrame, position: str, drafted: DataFrame):
+    stats = requests.get(f"https://api-web.nhle.com/v1/player/{id}/landing").json()
+    if not stats["isActive"]: return 0
+
+    # if max([difflib.SequenceMatcher(None, stats['playerSlug']).ratio() for d in drafted]) >= similarity_level:
+    #    drafted = 1
+    player = pd.Series()
+    player["firstName"] = stats["firstName"]["default"]
+    player["lastName"] = stats["lastName"]["default"]
+    player["age"] = today.year - int(stats["birthDate"].split("-")[0])
+    player["team"] = team["fullName"]
+
+
+    seasons_stats = stats["seasonTotals"]
+    last_seasons = DataFrame.from_records(seasons_stats)
+    last_seasons = last_seasons.iloc[-min(5, len(last_seasons)):]
+
+    try:
+        player["Last Season Points"] = last_seasons[-1:]["points"].iloc[0]
+        player["Last Season Games Played"] = last_seasons[-1:]["gamesPlayed"].iloc[0]
+        player["Last Season +/-"] = last_seasons[-1:]["plusMinus"].iloc[0]
+        player["leagues"] = str(list(last_seasons["leagueAbbrev"]))
+        player["position"] = position
+
+        player["Average Points"] = last_seasons["points"].mean()
+        player["Points History"] = str(list(last_seasons["points"]))
+        player["Average Games Played"] = last_seasons["gamesPlayed"].mean().real
+        player["Average +/-"] = last_seasons["plusMinus"].mean()
+
+        player["Differential Points"] = last_seasons["points"].diff().mean()
+
+        list_to_add = pd.concat([list_to_add, player.to_frame().T])
+    except KeyError:
+        print(f"Error processing player: {id}")
+
+    return list_to_add
+
 
 def analysePlayersFromTeam(team, drafted_players: DataFrame):
     forwards = DataFrame()
     defensemen = DataFrame()
     goalies = DataFrame()
+    rookies = DataFrame()
 
     team_code = team['triCode']
     request = f"https://api-web.nhle.com/v1/roster/{team_code}/current"
     try:
         roster = requests.get(request).json()
     except ValueError:
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
     drafted_count = 0
     for player in roster["forwards"]:
@@ -124,7 +162,16 @@ def analysePlayersFromTeam(team, drafted_players: DataFrame):
         defensemen = addPlayer(player["id"], team, defensemen, DataFrame())
     for goalie in roster["goalies"]:
         goalies = addGoalie(goalie["id"], team, goalies, DataFrame())
-    return forwards, defensemen, goalies
+
+    # Analyse prospects
+    request = f"https://api-web.nhle.com/v1/prospects/{team_code}"
+    prospects = requests.get(request).json()
+    for player in prospects["forwards"]:
+        rookies = addRookie(player["id"], team, rookies, "f", DataFrame())
+    for player in prospects["defensemen"]:
+        rookies = addRookie(player["id"], team, rookies, "d", DataFrame())
+
+    return forwards, defensemen, goalies, rookies
 
 
 def generatePlayerList():
@@ -138,7 +185,7 @@ def generatePlayerList():
     teams = DataFrame.from_records(teams_json)
     # forwards, defensemen, goalies = analysePlayersFromTeam("MTL", forwards, defensemen, goalies, drafted_players)
 
-    results_dict = {"F": [], "D": [], "G": []}
+    results_dict = {"F": [], "D": [], "G": [], "R":[]}
 
     test_team = {"triCode": "TOR", "fullName": "Toronto_test"}
     #analysePlayersFromTeam(test_team, drafted_players)
@@ -149,19 +196,22 @@ def generatePlayerList():
                 executors.submit(analysePlayersFromTeam, team, drafted_players)
                 for k, team in teams.iterrows()]
             for future in as_completed(futures):
-                f, d, g = future.result()
+                f, d, g, r = future.result()
                 results_dict["F"].append(f)
                 results_dict["D"].append(d)
                 results_dict["G"].append(g)
+                results_dict["R"].append(r)
                 pbar.update(1)
 
     forwards = pd.concat(results_dict["F"])
     defensemen = pd.concat(results_dict["D"])
     goalies = pd.concat(results_dict["G"])
+    rookies = pd.concat(results_dict["R"])
 
     forwards.to_csv("../outputs/forwards.csv", index=False)
     defensemen.to_csv("../outputs/defensemen.csv", index=False)
     goalies.to_csv("../outputs/goalies.csv", index=False)
+    rookies.to_csv("../outputs/rookies.csv", index=False)
 
     print("CSVs generated")
 
