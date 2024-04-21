@@ -15,22 +15,7 @@ from datetime import date
 
 confirmation_mutex = Lock()
 today = date.today()
-
-
-class Filters(Enum):
-    id = 0
-    fullname = 1
-    points_last_season = 2
-    average_last_seasons = 3
-    transferred = 4
-    drafted = 5
-
-
 similarity_level = 0.8
-
-filters = ['ID', 'Full Name', 'Points Last Season', 'Average Last Seasons', 'Transferred', 'Drafted']
-# "20232024",
-active_seasons = ["20222023", "20212022", "20202021", "20192020"]
 
 if not os.path.exists("../outputs"):
     os.makedirs("../outputs")
@@ -50,7 +35,7 @@ def addPlayer(id, team, list_to_add: DataFrame, drafted: DataFrame):
     seasons_stats = stats["seasonTotals"]
     last_seasons = DataFrame.from_records(seasons_stats)
     last_seasons = last_seasons[last_seasons["leagueAbbrev"] == "NHL"]
-    last_seasons = last_seasons[["season","points","gamesPlayed", "plusMinus"]].groupby("season").sum()
+    last_seasons = last_seasons[["season", "points", "gamesPlayed", "plusMinus"]].groupby("season").sum()
     if len(last_seasons) == 0:
         return list_to_add
     last_seasons = last_seasons.iloc[-5:]
@@ -75,48 +60,49 @@ def addPlayer(id, team, list_to_add: DataFrame, drafted: DataFrame):
     return list_to_add
 
 
-def addGoalie(player, team, goalies, drafted_players, current_team_name):
-    statsLastSeason = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(
-        player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[0]).json()
-    pointsLastSeason = 0
-    average = 0
-    count = 0
-    drafted = 0
-    try:
-        pointsLastSeason = statsLastSeason["stats"][0]["splits"][0]["stat"]["wins"] * 2 + \
-                           statsLastSeason["stats"][0]["splits"][0]["stat"]["ties"]
-        average += pointsLastSeason
-        count += 1
-    except:
-        pass
-    stats = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(
-        player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[1]).json()
-    try:
-        average += stats["stats"][0]["splits"][0]["stat"]["wins"] * 2 + stats["stats"][0]["splits"][0]["stat"]["ties"]
-        count += 1
-    except:
-        pass
-    stats = requests.get("https://statsapi.web.nhl.com/api/v1/people/" + str(
-        player["person"]["id"]) + "/stats?stats=statsSingleSeason&season=" + active_seasons[2]).json()
-    try:
-        average += stats["stats"][0]["splits"][0]["stat"]["wins"] * 2 + stats["stats"][0]["splits"][0]["stat"]["ties"]
-        count += 1
-    except:
-        pass
-    if (count):
-        average /= count
+def addGoalie(id, team, list_to_add: DataFrame, drafted: DataFrame):
+    stats = requests.get(f"https://api-web.nhle.com/v1/player/{id}/landing").json()
+    if not stats["isActive"]: return 0
 
-    if max([difflib.SequenceMatcher(None, player['person']['fullName'].upper().split(" ")[-1], d).ratio() for d in
-            drafted_players]) >= similarity_level:
-        drafted = 1
+    # if max([difflib.SequenceMatcher(None, stats['playerSlug']).ratio() for d in drafted]) >= similarity_level:
+    #    drafted = 1
+    player = pd.Series()
+    player["firstName"] = stats["firstName"]["default"]
+    player["lastName"] = stats["lastName"]["default"]
+    player["age"] = today.year - int(stats["birthDate"].split("-")[0])
+    player["team"] = team["fullName"]
+    seasons_stats = stats["seasonTotals"]
+    try:
+        last_seasons = DataFrame.from_records(seasons_stats)
+        last_seasons = last_seasons[last_seasons["leagueAbbrev"] == "NHL"]
+        if len(last_seasons) == 0:
+            return list_to_add
+        last_seasons = last_seasons[["season", "wins", "otLosses", "shutouts", "goals", "assists", "gamesPlayed"]].groupby("season").sum()
+        last_seasons = last_seasons.iloc[-5:]
 
-    goalies.writerow({filters[Filters.id.value]: player['person']['id'],
-                      filters[Filters.fullname.value]: player['person']['fullName'],
-                      filters[Filters.points_last_season.value]: pointsLastSeason,
-                      filters[Filters.average_last_seasons.value]: average,
-                      filters[Filters.transferred.value]: current_team_name,
-                      filters[Filters.drafted.value]: drafted})
-    return drafted
+        last_seasons["points"] = 2 * last_seasons["wins"] + \
+                                                last_seasons["otLosses"] + \
+                                                3 * last_seasons["shutouts"] + \
+                                                10 * last_seasons["goals"] + \
+                                                2 * last_seasons["assists"]
+    except KeyError:
+        print(f"Error running goaler: {id}")
+        return list_to_add
+
+    try:
+        player["Last Season Points"] = last_seasons[-1:]["points"].iloc[0]
+        player["Last Season Games Played"] = last_seasons[-1:]["gamesPlayed"].iloc[0]
+
+        player["Average Points"] = last_seasons["points"].mean()
+        player["Average Games Played"] = last_seasons["gamesPlayed"].mean().real
+    except IndexError:
+        print(f"Last Seasons: {last_seasons.to_string()}")
+        pass
+
+    # player["transferred"] = last_seasons[-1:]["teamName"]["default"] is not last_seasons[-2:]["teamName"]["default"]
+
+    list_to_add = pd.concat([list_to_add, player.to_frame().T])
+    return list_to_add
 
 
 def analysePlayersFromTeam(team, drafted_players: DataFrame):
@@ -136,7 +122,8 @@ def analysePlayersFromTeam(team, drafted_players: DataFrame):
         forwards = addPlayer(player["id"], team, forwards, DataFrame())
     for player in roster["defensemen"]:
         defensemen = addPlayer(player["id"], team, defensemen, DataFrame())
-
+    for goalie in roster["goalies"]:
+        goalies = addGoalie(goalie["id"], team, goalies, DataFrame())
     return forwards, defensemen, goalies
 
 
@@ -153,12 +140,11 @@ def generatePlayerList():
 
     results_dict = {"F": [], "D": [], "G": []}
 
-    test_team = {"triCode":"CAR","fullName":"Carolina_test" }
-
-    test_carolina = analysePlayersFromTeam(test_team, DataFrame())
+    test_team = {"triCode": "TOR", "fullName": "Toronto_test"}
+    #analysePlayersFromTeam(test_team, drafted_players)
 
     with tqdm(total=len(teams), desc="Generating Database", colour="green") as pbar:
-        with ThreadPoolExecutor(max_workers=8) as executors:
+        with ThreadPoolExecutor(max_workers=len(teams)) as executors:
             futures = [
                 executors.submit(analysePlayersFromTeam, team, drafted_players)
                 for k, team in teams.iterrows()]
