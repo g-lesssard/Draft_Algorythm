@@ -25,13 +25,12 @@ def addPlayer(id, team, list_to_add: DataFrame, drafted: DataFrame):
     stats = requests.get(f"https://api-web.nhle.com/v1/player/{id}/landing").json()
     if not stats["isActive"]: return 0
 
-    # if max([difflib.SequenceMatcher(None, stats['playerSlug']).ratio() for d in drafted]) >= similarity_level:
-    #    drafted = 1
     player = pd.Series()
     player["firstName"] = stats["firstName"]["default"]
     player["lastName"] = stats["lastName"]["default"]
     player["age"] = today.year - int(stats["birthDate"].split("-")[0])
     player["team"] = team["fullName"]
+    player["Drafted"] = check_present(player["lastName"], drafted)
     seasons_stats = stats["seasonTotals"]
     last_seasons = DataFrame.from_records(seasons_stats)
     last_seasons = last_seasons[last_seasons["leagueAbbrev"] == "NHL"]
@@ -50,6 +49,7 @@ def addPlayer(id, team, list_to_add: DataFrame, drafted: DataFrame):
         player["Average +/-"] = last_seasons["plusMinus"].mean()
 
         player["Differential Points"] = last_seasons["points"].diff().mean()
+
     except IndexError:
         print(f"Last Seasons: {last_seasons.to_string()}")
         pass
@@ -64,13 +64,13 @@ def addGoalie(id, team, list_to_add: DataFrame, drafted: DataFrame):
     stats = requests.get(f"https://api-web.nhle.com/v1/player/{id}/landing").json()
     if not stats["isActive"]: return 0
 
-    # if max([difflib.SequenceMatcher(None, stats['playerSlug']).ratio() for d in drafted]) >= similarity_level:
-    #    drafted = 1
+
     player = pd.Series()
     player["firstName"] = stats["firstName"]["default"]
     player["lastName"] = stats["lastName"]["default"]
     player["age"] = today.year - int(stats["birthDate"].split("-")[0])
     player["team"] = team["fullName"]
+    player["Drafted"] = check_present(player["lastName"], drafted)
     seasons_stats = stats["seasonTotals"]
     try:
         last_seasons = DataFrame.from_records(seasons_stats)
@@ -157,11 +157,11 @@ def analysePlayersFromTeam(team, drafted_players: DataFrame):
 
     drafted_count = 0
     for player in roster["forwards"]:
-        forwards = addPlayer(player["id"], team, forwards, DataFrame())
+        forwards = addPlayer(player["id"], team, forwards, drafted_players["forwards"])
     for player in roster["defensemen"]:
-        defensemen = addPlayer(player["id"], team, defensemen, DataFrame())
+        defensemen = addPlayer(player["id"], team, defensemen, drafted_players["defensemen"])
     for goalie in roster["goalies"]:
-        goalies = addGoalie(goalie["id"], team, goalies, DataFrame())
+        goalies = addGoalie(goalie["id"], team, goalies, drafted_players["goalies"])
 
     # Analyse prospects
     request = f"https://api-web.nhle.com/v1/prospects/{team_code}"
@@ -222,6 +222,12 @@ def generatePlayerList():
                         f" drafted players instead of {expected_drafted_count}")
     pass
 
+
+def check_present(target:str, player_list):
+    for player in player_list:
+        if target.casefold() == player.casefold():
+            return 1
+    return 0
 
 def generated_forbidden_lists():
     drafted_players = dict()
