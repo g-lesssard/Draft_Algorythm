@@ -233,17 +233,14 @@ def generated_forbidden_lists():
     drafted_players = dict()
 
     text_file = open(os.path.join(os.getcwd(), "../forbidden_forwards.raw"), 'r', encoding="utf8")
-    as_string = text_file.read()
 
-    drafted_players.update({"forwards": as_string.split()})
+    drafted_players.update({"forwards":  text_file.read().splitlines()})
 
     text_file = open(os.path.join(os.getcwd(), "../forbidden_defensemen.raw"), 'r', encoding="utf8")
-    as_string = text_file.read()
-    drafted_players.update({"defensemen": as_string.split()})
+    drafted_players.update({"defensemen": text_file.read().splitlines()})
 
     text_file = open(os.path.join(os.getcwd(), "../forbidden_goalies.raw"), 'r', encoding="utf8")
-    as_string = text_file.read()
-    drafted_players.update({"goalies": as_string.split()})
+    drafted_players.update({"goalies": text_file.read().splitlines()})
 
     return drafted_players
 
@@ -270,4 +267,6 @@ def test_forbidden_players():
 
 if __name__ == "__main__":
     generatePlayerList()
+    text_file = open(os.path.join(os.getcwd(), "../forbidden_forwards.raw"), 'r', encoding="utf8")
+    check_present("Crosby", text_file.read().splitlines())
     test_forbidden_players()
