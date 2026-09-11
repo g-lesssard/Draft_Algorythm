@@ -190,18 +190,21 @@ def generatePlayerList():
     test_team = {"triCode": "TOR", "fullName": "Toronto_test"}
     # analysePlayersFromTeam(test_team, drafted_players)
 
-    with tqdm(total=len(teams), desc="Generating Database", colour="green") as pbar:
-        with ThreadPoolExecutor(max_workers=len(teams)) as executors:
+    with tqdm(total=1, desc="Generating Database", colour="green") as pbar:
+        with ThreadPoolExecutor(max_workers=1) as executors:
             futures = [
                 executors.submit(analysePlayersFromTeam, team, drafted_players)
                 for k, team in teams.iterrows()]
             for future in as_completed(futures):
-                f, d, g, r = future.result()
-                results_dict["F"].append(f)
-                results_dict["D"].append(d)
-                results_dict["G"].append(g)
-                results_dict["R"].append(r)
-                pbar.update(1)
+                try:
+                    f, d, g, r = future.result()
+                    results_dict["F"].append(f)
+                    results_dict["D"].append(d)
+                    results_dict["G"].append(g)
+                    results_dict["R"].append(r)
+                    pbar.update(1)
+                except requests.exceptions.JSONDecodeError as e:
+                    print(f"Error occurred while processing : {e}")
 
     forwards = pd.concat(results_dict["F"])
     defensemen = pd.concat(results_dict["D"])
